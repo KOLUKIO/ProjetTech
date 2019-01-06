@@ -1,0 +1,220 @@
+package com.example.lucien.myapplication;
+
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.support.v8.renderscript.Allocation;
+import android.support.v8.renderscript.RenderScript;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
+
+import com.android.rssample.ScriptC_toGreyRS;
+
+public class MainActivity extends AppCompatActivity {
+    private ImageView hannibalImage;
+    private Bitmap hannibalBitmap;
+    private int Height;
+    private int Width;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        hannibalImage = (ImageView) findViewById(R.id.imageView);
+        //hannibalImage.setImageResource(R.drawable.hannibal);
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        hannibalBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.hannibal, options);
+        hannibalImage.setImageBitmap(hannibalBitmap);
+        //toGray(hannibalBitmap);
+
+        Height = hannibalBitmap.getHeight();
+        Width = hannibalBitmap.getWidth();
+
+        TextView text = (TextView) findViewById(R.id.textView);
+        String c = "Height : " + Height + " Width : " + Width+"";
+        text.setText(c);
+        Button mButtonGris2 = (Button) findViewById(R.id.button);
+        mButtonGris2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hannibalImage.setImageBitmap(toGreyRS(hannibalBitmap));
+            }
+        });
+
+        Button mButtonColorize = (Button) findViewById(R.id.button2);
+        mButtonColorize.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hannibalImage.setImageBitmap(colorize(hannibalBitmap));
+            }
+        });
+        Button mButtonOneColor = (Button) findViewById(R.id.button3);
+        mButtonOneColor.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hannibalImage.setImageBitmap(oneColor(hannibalBitmap));
+            }
+        });
+
+        Button mButtonContrast = (Button) findViewById(R.id.button4);
+        mButtonContrast.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hannibalImage.setImageBitmap(contrastOnGrey(hannibalBitmap));
+            }
+        });
+
+
+        Button mButtonReset = (Button) findViewById(R.id.button5);
+        mButtonReset.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hannibalImage.setImageBitmap(reset(hannibalBitmap));
+            }
+        });
+    }
+    public Bitmap toGray(Bitmap bmp) {
+        Bitmap bmp_copy = bmp.copy(Bitmap.Config.ARGB_8888, true);
+        for (int y = 0; y < bmp.getHeight(); y++) {
+            for (int x = 0; x < bmp.getWidth(); x++) {
+
+                int pixel = bmp.getPixel(x, y);
+
+                int redValue = Color.red(pixel);
+                int greenValue = Color.green(pixel);
+                int blueValue = Color.blue(pixel);
+
+                int gray = (int) Math.round(0.3 * redValue + 0.59 * greenValue + 0.11 * blueValue);
+
+                bmp_copy.setPixel(x, y, Color.rgb(gray, gray, gray));
+
+
+            }
+        }
+        return bmp_copy;
+
+    }
+
+    public Bitmap colorize (Bitmap bmp){
+        Bitmap bmp_copy = bmp.copy(Bitmap.Config.ARGB_8888, true);
+
+
+        int[] pixels = new int[Width*Height];
+        int c ;
+        int r ;
+        int g ;
+        int b ;
+        float rand = (float) Math.random() * 360;
+        float[] hsv = new float[3];
+        bmp_copy.getPixels(pixels,0,Width,0,0,Width,Height);
+        for(int i = 0 ; i < pixels.length ; i++){
+            c = pixels[i];
+            r = Color.red(c);
+            g = Color.green(c);
+            b = Color.blue(c);
+            Color.RGBToHSV(r,g,b,hsv);
+            hsv[0] = rand;
+            pixels[i] = Color.HSVToColor(hsv);
+        }
+        bmp_copy.setPixels(pixels,0,Width,0,0,Width,Height);
+
+        return bmp_copy;
+    }
+
+    public Bitmap oneColor(Bitmap bmp){
+        Bitmap bmp_copy = bmp.copy(Bitmap.Config.ARGB_8888, true);
+        int w = bmp.getWidth();
+        int h = bmp.getHeight();
+        int rnd = (int) Math.random() * 360;
+        int range = 20;                               //the range of the color to change
+
+        for (int i = 0; i < w; i++) {
+            for (int j = 0; j < h; j++) {
+                int col = bmp.getPixel(i, j);
+                int r = Color.red(col);
+                int g = Color.green(col);
+                int b = Color.blue(col);
+                float[] hsv = new float[3];
+                Color.RGBToHSV(r, g, b, hsv);
+
+                if (hsv[0]>rnd-range && hsv[0]<rnd+range){
+                    bmp_copy.setPixel(i,j,Color.rgb(r,g,b));
+                }else{
+                    int gl = (int) (r*0.3+g*0.59+b*0.11);
+                    bmp_copy.setPixel(i,j,Color.rgb(gl,gl,gl));
+                }
+
+            }
+        }
+
+
+        return bmp_copy;
+    }
+    public Bitmap reset(Bitmap bmp){
+        Bitmap bmp_copy = bmp.copy(Bitmap.Config.ARGB_8888, true);
+
+        return bmp_copy;
+    }
+    private Bitmap toGreyRS ( Bitmap bmp ) {
+
+        Bitmap bmp_copy = bmp.copy(Bitmap.Config.ARGB_8888, true);
+        RenderScript rs = RenderScript. create ( this ) ;
+        Allocation input = Allocation. createFromBitmap ( rs , bmp_copy ) ;
+        Allocation output = Allocation . createTyped ( rs , input.getType () ) ;
+
+        ScriptC_toGreyRS greyScript = new ScriptC_toGreyRS ( rs ) ;
+
+        greyScript . forEach_toGrey ( input , output ) ;
+        output . copyTo ( bmp_copy ) ;
+        input . destroy () ; output . destroy () ;
+        greyScript . destroy () ; rs . destroy () ;
+
+        return bmp_copy;
+    }
+
+    private Bitmap contrastOnGrey(Bitmap bmp){
+
+
+        Bitmap bmp_grey = toGreyRS( bmp.copy(Bitmap.Config.ARGB_8888, true));
+        int[] pixels =new int[Width*Height];
+
+
+        for(int i = 0; i<Width; i++){
+            for (int j = 0; j<Height; j++){
+                int col = bmp_grey.getPixel(i, j);
+                pixels[col]= pixels[col]+1;
+            }
+        }
+
+        int min = pixels[0];
+        int max = pixels[0];
+        int[] LUT = new int[256];
+        for(int i = 0; i<pixels.length; i++){
+            if(min > pixels[i]){
+                min = pixels[i];
+            }
+            if(max < pixels[i]){
+                max = pixels[i];
+            }
+
+        }
+        for(int i = 0; i<256; i++){
+            LUT[i] = (255*(i-min))/(max-min);
+        }
+        for( int i = 0; i < Width; i++){
+            for( int j = 0; j < Height; j++){
+                bmp_grey.setPixel(i, j, Color.rgb(LUT[bmp_grey.getPixel(i,j)],LUT[bmp_grey.getPixel(i,j)] ,LUT[bmp_grey.getPixel(i,j)]));
+            }
+        }
+
+        return bmp_grey;
+
+
+    }
+
+
+
+}
